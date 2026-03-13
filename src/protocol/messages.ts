@@ -9,7 +9,7 @@ export interface InboundMessage {
 /**
  * Represents a message sent from the Agent back to the User/CLI.
  */
-export type OutboundMessage = 
+export type OutboundMessage =
   | { type: 'content'; content: string }
   | { type: 'tool_call'; toolName: string; toolArgs?: any }
   | { type: 'status_update'; state: 'BLOCKED' | 'COMPLETED'; reason: string }
