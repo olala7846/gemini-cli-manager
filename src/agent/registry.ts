@@ -19,7 +19,7 @@ export function loadRegistry(configPath = path.join(process.cwd(), 'agents.json'
   }
   const rawData = fs.readFileSync(configPath, 'utf-8');
   const parsed = JSON.parse(rawData) as { agents: AgentConfig[] };
-  
+
   loadedAgents = {};
   for (const agent of parsed.agents) {
     loadedAgents[agent.id] = agent;
@@ -31,7 +31,7 @@ export function getAgentConfig(id: string): AgentConfig {
     // Default fallback to look in CWD if not explicitly loaded
     loadRegistry();
   }
-  
+
   const config = loadedAgents![id];
   if (!config) {
     throw new Error(`Agent configuration for '${id}' not found in registry.`);
