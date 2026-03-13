@@ -1,8 +1,30 @@
-# Harness Gemini 
+# Gemini Manager
 
+Harness the power of Gemini CLI (existing Google subscription) by leveraging the geminicli
 
-Harness the power of Gemini CLI
+## Goal / Vision
+Fill the gap of what Google don't build (Remote Control, Dashboard, Workflow) for Gemini CLI
 
+## Installation
+
+Because the `@google/gemini-cli-sdk` is not publicly published to NPM, this project expects a local clone of the `gemini-cli` repository to be present in the parent directory.
+
+1. Clone the `gemini-cli` repository into your workspace alongside this project:
+   ```bash
+   cd ..
+   git clone git@github.com:google-gemini/gemini-cli.git
+   ```
+2. Build the `gemini-cli` dependencies:
+   ```bash
+   cd gemini-cli
+   npm install
+   npm run build
+   ```
+3. Return to this repository and install the local packages:
+   ```bash
+   cd ../harness-gemini
+   npm install
+   ```
 
 ## Ideas
 
@@ -23,3 +45,7 @@ Harness the power of Gemini CLI
 - Being able to trigger gemini cli with predefined prompts
 - Being able to Schedule command to Gemini CLI (specific time or periodically through cron)
 - Being able to orchestrate different works depends on each other (Workflow)
+
+### Phase 3 (Console UI)
+- Being able to view the status of the agent
+- Being able to schedule and orchesetrate agent workflow
