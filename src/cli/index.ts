@@ -48,11 +48,9 @@ async function main() {
   // Setup CLI Interface
   let expectingResponse = false;
   let isPaused = false;
-  let rlClosed = false;
   let rl = createRL();
 
   function createRL() {
-    rlClosed = false;
     const newRl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -89,17 +87,20 @@ async function main() {
       console.error('\n[Readline Error]:', err);
     });
 
-    newRl.on('close', () => {
-      rlClosed = true;
-    });
-
     return newRl;
   }
 
   function ensureRl() {
-    if (rlClosed) {
+    // readline.Interface exposes .closed at runtime (Node ≥ 18.6) but @types/node omits it; cast to access it.
+    if ((rl as any).closed) {
       rl = createRL();
     }
+  }
+
+  function resetCliAndPrompt() {
+    expectingResponse = false;
+    ensureRl();
+    try { rl.prompt(); } catch (e) {}
   }
 
   subscribeOutbound((msg) => {
@@ -112,35 +113,25 @@ async function main() {
         break;
       case 'input_needed':
         console.log(`\n\n[PAUSED: INPUT NEEDED] Reason: ${msg.reason}`);
-        expectingResponse = false;
         isPaused = true;
-        ensureRl();
-        try { rl.prompt(); } catch (e) {}
+        resetCliAndPrompt();
         break;
       case 'task_completed':
         console.log(`\n\n[COMPLETED] ${msg.reason}`);
-        expectingResponse = false;
-        ensureRl();
-        try { rl.prompt(); } catch (e) {}
+        resetCliAndPrompt();
         break;
       case 'task_failed':
         console.log(`\n\n[FAILED] Reason: ${msg.reason}`);
-        expectingResponse = false;
-        ensureRl();
-        try { rl.prompt(); } catch (e) {}
+        resetCliAndPrompt();
         break;
       case 'error':
         console.error(`\n[Agent Error]: ${msg.content}\n`);
-        expectingResponse = false;
-        ensureRl();
-        try { rl.prompt(); } catch (e) {}
+        resetCliAndPrompt();
         break;
       case 'done':
         if (!isPaused) {
           console.log('\n'); // Add breathing room after stream finishes
-          expectingResponse = false;
-          ensureRl();
-          try { rl.prompt(); } catch (e) {}
+          resetCliAndPrompt();
         }
         break;
     }
