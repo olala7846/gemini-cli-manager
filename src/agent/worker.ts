@@ -4,11 +4,17 @@ import type { AgentConfig } from './registry.js';
 import type { GeminiCliSession } from '@google/gemini-cli-sdk';
 import { ReportStatusTool } from './statusTool.js';
 
+type WorkerState = 'INITIALIZED' | 'RUNNING' | 'PAUSED' | 'STOPPED';
+
+/** Prefix injected into the conversation history when resuming a paused task. */
+const RESUME_PREFIX = '[User Resumed Task]:';
+
 export class AgentWorker {
   private agent: GeminiCliAgent;
   private session: GeminiCliSession | null = null;
   private config: AgentConfig;
   private cwd: string;
+  private state: WorkerState = 'INITIALIZED';
 
   constructor(config: AgentConfig, cwd: string) {
     this.config = config;
@@ -34,16 +40,32 @@ export class AgentWorker {
     subscribeInbound(async (msg) => {
       if (msg.type === 'prompt') {
         await this.handlePrompt(msg.content);
+      } else if (msg.type === 'resume_task') {
+        await this.handleResume(msg.content);
       } else if (msg.type === 'system_override') {
         console.warn('Dynamic system overrides not fully implemented in PoC');
       }
     });
 
+    this.state = 'RUNNING';
     publishOutbound({ type: 'content', content: `[System] ${this.config.id} initialized in ${this.cwd}\n\n` });
   }
 
+  private async handleResume(content: string) {
+    if (this.state !== 'PAUSED') {
+      publishOutbound({ type: 'error', content: 'Cannot resume a task that is not currently PAUSED.' });
+      return;
+    }
+
+    this.state = 'RUNNING';
+    await this.handlePrompt(`${RESUME_PREFIX} ${content}`);
+  }
+
   private async handlePrompt(prompt: string) {
-    if (!this.session) return;
+    if (!this.session || this.state !== 'RUNNING') {
+      // TODO: publish a user-visible error when a prompt is dropped while PAUSED
+      return;
+    }
 
     try {
       const stream = this.session.sendStream(prompt);
@@ -60,14 +82,25 @@ export class AgentWorker {
           const toolArgs = event.value?.args;
 
           if (toolName === 'report_status') {
-            // It's our injected status tool! We intercept it here.
-            publishOutbound({
-              type: 'status_update',
-              state: toolArgs?.state as 'BLOCKED' | 'COMPLETED',
-              reason: toolArgs?.reason as string
-            });
-            // We do not want to continue spinning in the agent loop if it declared it's fully done or blocked.
-            return;
+            const state = toolArgs?.state as 'INPUT_NEEDED' | 'COMPLETED' | 'FAILED';
+            const reason = toolArgs?.reason as string;
+
+            const systemAck = await ReportStatusTool.action({ state, reason });
+            publishOutbound({ type: 'content', content: `\n[System Internal: ${systemAck}]\n`});
+
+            if (state === 'INPUT_NEEDED') {
+              this.state = 'PAUSED';
+              publishOutbound({ type: 'input_needed', reason });
+              throw new Error('AGENT_PAUSED_INTENTIONALLY');
+            } else if (state === 'COMPLETED') {
+              this.state = 'STOPPED';
+              publishOutbound({ type: 'task_completed', reason });
+              throw new Error('AGENT_STOPPED_INTENTIONALLY');
+            } else if (state === 'FAILED') {
+              this.state = 'STOPPED';
+              publishOutbound({ type: 'task_failed', reason });
+              throw new Error('AGENT_STOPPED_INTENTIONALLY');
+            }
           }
 
           publishOutbound({
@@ -77,8 +110,18 @@ export class AgentWorker {
           });
         }
       }
-      publishOutbound({ type: 'done' });
+      
+      // If the stream naturally finishes without the agent explicitly calling the status tool:
+      if (this.state === 'RUNNING') {
+        publishOutbound({ type: 'done' });
+      }
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message === 'AGENT_PAUSED_INTENTIONALLY' || err.message === 'AGENT_STOPPED_INTENTIONALLY') {
+        // We intentionally aborted the stream to pause/stop the agent contextually.
+        return;
+      }
+      this.state = 'STOPPED';
+      // TODO: call session.close() here once the SDK exposes a teardown API
       publishOutbound({ type: 'error', content: err.message || 'Unknown error occurred' });
     }
   }

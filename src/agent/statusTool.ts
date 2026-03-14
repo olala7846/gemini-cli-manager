@@ -8,12 +8,12 @@ export const ReportStatusTool = {
   description:
     'Use this tool to explicitly report your progress back to the system. You MUST call this tool when you are completely finished with a task, or when you are permanently blocked and cannot proceed without human intervention.',
   inputSchema: z.object({
-    state: z.enum(['BLOCKED', 'COMPLETED']).describe('The current state of your progress.'),
+    state: z.enum(['INPUT_NEEDED', 'COMPLETED', 'FAILED']).describe('The current state of your progress. Use INPUT_NEEDED if you are blocked and require human clarification. Use FAILED if you encountered an unrecoverable error.'),
     reason: z
       .string()
-      .describe('A clear, human-readable explanation of why you are blocked or what you have completed.')
+      .describe('A clear, human-readable explanation of why you are blocked, failed, or what you have completed.')
   }),
   action: async (params: { state: string; reason: string }) => {
-    return `Status reported as ${params.state}. System acknowledged.`;
+    return `Status reported as ${params.state}. Session will be paused if INPUT_NEEDED. System acknowledged.`;
   }
 };
