@@ -71,7 +71,7 @@ sequenceDiagram
     Worker->>Worker: state = 'PAUSED'
     Worker->>Bus: publishOutbound({ type: 'input_needed', reason })
     Worker->>Worker: throw Error('AGENT_PAUSED_INTENTIONALLY')
-    Note right of Worker: breaks the for-await loop; GeminiCliSession stays alive
+    Note right of Worker: breaks the for-await loop - GeminiCliSession stays alive
 
     Bus-->>CLI: input_needed message
     CLI->>CLI: isPaused = true, show prompt
