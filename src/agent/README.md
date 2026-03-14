@@ -45,59 +45,59 @@ The following covers both the **happy path** (task completes) and the **pause/re
 
 ```mermaid
 sequenceDiagram
-    participant CLI as CLI (index.ts)
+    participant CLI as CLI
     participant Bus as Protocol Bus
-    participant Worker as AgentWorker (worker.ts)
-    participant Session as GeminiCliSession (SDK)
+    participant Worker as AgentWorker
+    participant Session as GeminiCliSession
     participant LLM as Gemini LLM
 
     Note over CLI,LLM: Normal task execution
-    CLI->>Bus: publishInbound({ type: 'prompt', content })
+    CLI->>Bus: publishInbound prompt
     Bus->>Worker: subscribeInbound callback
-    Worker->>Session: sendStream(prompt)
+    Worker->>Session: sendStream
     Session->>LLM: streaming request
 
     loop Stream events
         LLM-->>Session: content chunk
-        Session-->>Worker: event { type: 'content' }
-        Worker->>Bus: publishOutbound({ type: 'content' })
+        Session-->>Worker: content event
+        Worker->>Bus: publishOutbound content
         Bus-->>CLI: display content
     end
 
-    Note over Worker,LLM: LLM decides it needs user input
-    LLM-->>Session: tool_call_request { name: 'report_status', state: 'INPUT_NEEDED' }
-    Session-->>Worker: event { type: 'tool_call_request' }
+    Note over Worker,LLM: LLM needs user input
+    LLM-->>Session: tool_call_request - report_status INPUT_NEEDED
+    Session-->>Worker: tool_call_request event
 
-    Worker->>Worker: state = 'PAUSED'
-    Worker->>Bus: publishOutbound({ type: 'input_needed', reason })
-    Worker->>Worker: throw Error('AGENT_PAUSED_INTENTIONALLY')
-    Note right of Worker: breaks the for-await loop - GeminiCliSession stays alive
+    Worker->>Worker: state = PAUSED
+    Worker->>Bus: publishOutbound input_needed
+    Worker->>Worker: throw AGENT_PAUSED_INTENTIONALLY
+    Note right of Worker: breaks for-await loop - session stays alive
 
     Bus-->>CLI: input_needed message
     CLI->>CLI: isPaused = true, show prompt
 
     Note over CLI,LLM: User provides input
-    CLI->>Bus: publishInbound({ type: 'resume_task', content })
-    Bus->>Worker: handleResume(content)
-    Worker->>Worker: state = 'RUNNING'
-    Worker->>Session: sendStream('[User Resumed Task]: ' + content)
-    Note right of Session: SDK sees this as a new turn in the same conversation history
+    CLI->>Bus: publishInbound resume_task
+    Bus->>Worker: handleResume
+    Worker->>Worker: state = RUNNING
+    Worker->>Session: sendStream - new conversational turn
+    Note right of Session: conversation history is preserved
 
     loop Resumed stream events
-        LLM-->>Session: content / tool_call_request
+        LLM-->>Session: content or tool_call_request
         Session-->>Worker: events
-        Worker->>Bus: publishOutbound(...)
+        Worker->>Bus: publishOutbound
         Bus-->>CLI: display output
     end
 
-    Note over Worker,LLM: Task eventually completes
-    LLM-->>Session: tool_call_request { name: 'report_status', state: 'COMPLETED' }
-    Session-->>Worker: event { type: 'tool_call_request' }
-    Worker->>Worker: state = 'STOPPED'
-    Worker->>Bus: publishOutbound({ type: 'task_completed', reason })
-    Worker->>Worker: throw Error('AGENT_STOPPED_INTENTIONALLY')
+    Note over Worker,LLM: Task completes
+    LLM-->>Session: tool_call_request - report_status COMPLETED
+    Session-->>Worker: tool_call_request event
+    Worker->>Worker: state = STOPPED
+    Worker->>Bus: publishOutbound task_completed
+    Worker->>Worker: throw AGENT_STOPPED_INTENTIONALLY
     Bus-->>CLI: task_completed message
-    CLI->>CLI: resetCliAndPrompt()
+    CLI->>CLI: resetCliAndPrompt
 ```
 
 ### Key Design Decisions
