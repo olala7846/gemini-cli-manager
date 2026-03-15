@@ -4,7 +4,9 @@
   "description": "Harness the power of Gemini CLI",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "start:cli": "tsx src/cli/index.ts",
     "prepare": "husky",
     "lint": "eslint 'src/**/*.ts'",
@@ -32,7 +34,8 @@
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.0"
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@google/gemini-cli-sdk": "file:../gemini-cli/packages/sdk",
