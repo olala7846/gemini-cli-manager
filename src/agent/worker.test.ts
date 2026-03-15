@@ -95,7 +95,7 @@ describe('AgentWorker — unit tests', () => {
 
     const inputNeeded = msgs.find((m) => m.type === 'input_needed');
     expect(inputNeeded).toBeDefined();
-    expect((inputNeeded as any).reason).toBe('need filename');
+    expect(inputNeeded).toHaveProperty('reason', 'need filename');
   });
 
   // ── 3. Prompt ignored while PAUSED ─────────────────────────────────────────
@@ -163,7 +163,7 @@ describe('AgentWorker — unit tests', () => {
 
     const err = msgs.find((m) => m.type === 'error');
     expect(err).toBeDefined();
-    expect((err as any).content).toMatch(/PAUSED/);
+    expect(err).toHaveProperty('content', expect.stringMatching(/PAUSED/));
   });
 
   // ── 6. COMPLETED → STOPPED ─────────────────────────────────────────────────
@@ -182,7 +182,7 @@ describe('AgentWorker — unit tests', () => {
 
     const completed = msgs.find((m) => m.type === 'task_completed');
     expect(completed).toBeDefined();
-    expect((completed as any).reason).toBe('all done');
+    expect(completed).toHaveProperty('reason', 'all done');
   });
 
   // ── 7. FAILED → STOPPED ────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ describe('AgentWorker — unit tests', () => {
 
     const failed = msgs.find((m) => m.type === 'task_failed');
     expect(failed).toBeDefined();
-    expect((failed as any).reason).toBe('something broke');
+    expect(failed).toHaveProperty('reason', 'something broke');
   });
 
   // ── 8. Real error propagates as error message ──────────────────────────────
@@ -216,7 +216,7 @@ describe('AgentWorker — unit tests', () => {
 
     const err = msgs.find((m) => m.type === 'error');
     expect(err).toBeDefined();
-    expect((err as any).content).toBe('network failure');
+    expect(err).toHaveProperty('content', 'network failure');
   });
 
   // ── 9. AbortError is silently swallowed ────────────────────────────────────

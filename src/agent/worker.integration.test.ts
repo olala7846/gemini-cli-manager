@@ -84,8 +84,7 @@ maybeDescribe('AgentWorker — integration tests (real Gemini API)', () => {
 
     const inputNeededMsg = await inputNeededPromise;
     expect(inputNeededMsg.type).toBe('input_needed');
-    // The agent should report the exact reason we specified
-    expect((inputNeededMsg as any).reason).toBe('test-pause-checkpoint');
+    expect(inputNeededMsg).toHaveProperty('reason', 'test-pause-checkpoint');
 
     // ── Step 2: Resume ──────────────────────────────────────────────────────
     const completedPromise = waitForMessage('task_completed');
@@ -93,7 +92,7 @@ maybeDescribe('AgentWorker — integration tests (real Gemini API)', () => {
 
     const completedMsg = await completedPromise;
     expect(completedMsg.type).toBe('task_completed');
-    expect((completedMsg as any).reason).toBe('test-resume-confirmed');
+    expect(completedMsg).toHaveProperty('reason', 'test-resume-confirmed');
   });
 
   it('prompt while PAUSED is ignored — no new content emitted', async () => {
