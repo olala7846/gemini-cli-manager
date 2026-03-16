@@ -8,7 +8,11 @@ export const ReportStatusTool = {
   description:
     'Use this tool to explicitly report your progress back to the system. You MUST call this tool when you are completely finished with a task, or when you are permanently blocked and cannot proceed without human intervention.',
   inputSchema: z.object({
-    state: z.enum(['INPUT_NEEDED', 'COMPLETED', 'FAILED']).describe('The current state of your progress. Use INPUT_NEEDED if you are blocked and require human clarification. Use FAILED if you encountered an unrecoverable error.'),
+    state: z
+      .enum(['INPUT_NEEDED', 'COMPLETED', 'FAILED'])
+      .describe(
+        'The current state of your progress. Use INPUT_NEEDED if you are blocked and require human clarification. Use FAILED if you encountered an unrecoverable error.'
+      ),
     reason: z
       .string()
       .describe('A clear, human-readable explanation of why you are blocked, failed, or what you have completed.')

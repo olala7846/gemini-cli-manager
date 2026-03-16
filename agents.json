@@ -12,5 +12,9 @@
       "systemPrompt": "You are a web research assistant. Prioritize gathering accurate, up-to-date facts and synthesizing them clearly.",
       "skills": []
     }
-  ]
+  ],
+  "prompts": {
+    "ping": "Say 'pong' and then complete the task.",
+    "yolo_test": "Please tell me a joke. Wait for my input to tell me the punchline."
+  }
 }

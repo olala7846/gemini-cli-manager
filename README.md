@@ -37,12 +37,30 @@ sudo npm link
 
 Once the local SDK is built and dependencies are installed, you can trigger the custom wrapper CLI.
 
+### Interactive Mode
 To start an interactive chat session with the background Agent Worker:
 ```bash
-npm run start:cli
+npm run start:cli <agent> -- [--prompt "Optional initial prompt"]
 ```
 
+### Headless Scheduling (YOLO Mode)
+If you want to run an agent as a background task (e.g. via `cron`), you can use the `--headless` flag. In this mode, the agent is forced to use its best judgment and skip asking clarifying questions. The process will naturally exit `0` on completion or `1` on failure.
 
+You can combine this with predefined prompts configured in `agents.json`:
+
+1. Define a prompt in `agents.json`:
+```json
+{
+  "prompts": {
+    "my_task": "Analyze the codebase and write a summary..."
+  }
+}
+```
+
+2. Run it headlessly:
+```bash
+npm run start:cli coding-agent -- --prompt-name my_task --headless
+```
 
 ## Roadmap
 

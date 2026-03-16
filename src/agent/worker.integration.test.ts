@@ -38,7 +38,7 @@ Rules:
   call report_status with state=COMPLETED and reason="test-resume-confirmed"
 
 Do NOT write any text. Immediately call report_status.`,
-  skills: [],
+  skills: []
 };
 
 // ─── Helper ───────────────────────────────────────────────────────────────────

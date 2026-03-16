@@ -1,7 +1,7 @@
 /**
  * Represents a message sent from the User/CLI to the Agent.
  */
-export type InboundMessage = 
+export type InboundMessage =
   | { type: 'prompt'; content: string }
   | { type: 'system_override'; content: string }
   | { type: 'resume_task'; content: string };

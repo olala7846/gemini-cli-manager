@@ -1,5 +1,5 @@
 import * as readline from 'node:readline';
-import { getAgentConfig } from '../agent/registry.js';
+import { getAgentConfig, getPredefinedPrompt } from '../agent/registry.js';
 import { AgentWorker } from '../agent/worker.js';
 import { publishInbound, subscribeOutbound } from '../protocol/bus.js';
 
@@ -23,6 +23,7 @@ async function main() {
   const agentId = args[0];
   let cwd = process.cwd();
   let initialPrompt = '';
+  let isHeadless = false;
 
   let i = 1;
   while (i < args.length) {
@@ -32,6 +33,12 @@ async function main() {
     } else if (args[i] === '--prompt' && typeof args[i + 1] === 'string') {
       initialPrompt = args[i + 1] as string;
       i += 2;
+    } else if (args[i] === '--prompt-name' && typeof args[i + 1] === 'string') {
+      initialPrompt = getPredefinedPrompt(args[i + 1] as string);
+      i += 2;
+    } else if (args[i] === '--headless') {
+      isHeadless = true;
+      i += 1;
     } else {
       i++;
     }
@@ -43,12 +50,16 @@ async function main() {
   }
 
   const config = getAgentConfig(agentId);
-  const worker = new AgentWorker(config, cwd);
+  const worker = new AgentWorker(config, cwd, isHeadless ? 'headless' : 'interactive');
 
   // Setup CLI Interface
   let expectingResponse = false;
   let isPaused = false;
-  let rl = createRL();
+  let rl: readline.Interface | null = null;
+
+  if (!isHeadless) {
+    rl = createRL();
+  }
 
   function createRL() {
     const newRl = readline.createInterface({
@@ -78,7 +89,11 @@ async function main() {
           publishInbound({ type: 'prompt', content: input });
         }
       } else {
-        try { newRl.prompt(); } catch (e) {}
+        try {
+          rl?.prompt();
+        } catch (_e) {
+          /* ignore */
+        }
       }
     });
 
@@ -91,16 +106,22 @@ async function main() {
   }
 
   function ensureRl() {
+    if (isHeadless) return;
     // readline.Interface exposes .closed at runtime (Node ≥ 18.6) but @types/node omits it; cast to access it.
-    if ((rl as any).closed) {
+    if (rl && (rl as any).closed) {
       rl = createRL();
     }
   }
 
   function resetCliAndPrompt() {
     expectingResponse = false;
+    if (isHeadless) return;
     ensureRl();
-    try { rl.prompt(); } catch (e) {}
+    try {
+      rl?.prompt();
+    } catch (_e) {
+      /* ignore */
+    }
   }
 
   subscribeOutbound((msg) => {
@@ -118,20 +139,23 @@ async function main() {
         break;
       case 'task_completed':
         console.log(`\n\n[COMPLETED] ${msg.reason}`);
-        resetCliAndPrompt();
+        if (isHeadless) process.exit(0);
+        else resetCliAndPrompt();
         break;
       case 'task_failed':
-        console.log(`\n\n[FAILED] Reason: ${msg.reason}`);
-        resetCliAndPrompt();
+        console.error(`\n\n[FAILED] Reason: ${msg.reason}`);
+        if (isHeadless) process.exit(1);
+        else resetCliAndPrompt();
         break;
       case 'error':
         console.error(`\n[Agent Error]: ${msg.content}\n`);
-        resetCliAndPrompt();
+        if (isHeadless) process.exit(1);
+        else resetCliAndPrompt();
         break;
       case 'done':
         if (!isPaused) {
           console.log('\n'); // Add breathing room after stream finishes
-          resetCliAndPrompt();
+          if (!isHeadless) resetCliAndPrompt();
         }
         break;
     }
@@ -146,7 +170,11 @@ async function main() {
     publishInbound({ type: 'prompt', content: initialPrompt });
   } else {
     ensureRl();
-    try { rl.prompt(); } catch (e) {}
+    try {
+      rl?.prompt();
+    } catch (_e) {
+      /* ignore */
+    }
   }
 }
 
