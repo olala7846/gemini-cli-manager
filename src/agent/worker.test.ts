@@ -233,4 +233,105 @@ describe('AgentWorker — unit tests', () => {
 
     expect(msgs.find((m) => m.type === 'error')).toBeUndefined();
   });
+
+  // ── 10. YOLO Mode: INPUT_NEEDED is auto-replied ────────────────────────────
+  it('headless YOLO mode: INPUT_NEEDED auto-resumes rather than pausing', async () => {
+    agentBus.removeAllListeners();
+    worker = new AgentWorker(AGENT_CONFIG, '/tmp', 'headless');
+    await worker.start();
+
+    mockSendStream = () =>
+      makeStream([
+        {
+          type: 'tool_call_request',
+          value: { name: 'report_status', args: { state: 'INPUT_NEEDED', reason: 'idk' } },
+        },
+      ]);
+
+    const msgs = await collectOutbound(async () => {
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+    });
+
+    // It should have injected an auto-reply inward, which means no input_needed was sent out outward.
+    const inputNeeded = msgs.find((m) => m.type === 'input_needed');
+    expect(inputNeeded).toBeUndefined();
+    
+    // Check if worker state is still effectively running? Wait, internally it transitions.
+    // The test framework collects outbound messages. We can manually wait a tick.
+    await new Promise(r => setTimeout(r, 20));
+    
+    // The inbound injection happens via setTimeout, triggering handlePrompt again.
+    // We can't easily assert the stream was re-created in this simplified mock,
+    // but we CAN verify it did NOT emit an error or pause to the CLI.
+  });
+
+  // ── 11. YOLO Mode: Max Attempts Exceeded on consecutive INPUT_NEEDED ───────
+  it('headless YOLO mode: max attempts exceeded on 3x INPUT_NEEDED', async () => {
+    agentBus.removeAllListeners();
+    worker = new AgentWorker(AGENT_CONFIG, '/tmp', 'headless');
+    await worker.start();
+
+    mockSendStream = () =>
+      makeStream([
+        {
+          type: 'tool_call_request',
+          value: { name: 'report_status', args: { state: 'INPUT_NEEDED', reason: 'idk' } },
+        },
+      ]);
+
+    // Force three inputs
+    const msgs = await collectOutbound(async () => {
+      // 1
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start1' });
+      await new Promise(r => setTimeout(r, 20));
+      // 2
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start2' });
+      await new Promise(r => setTimeout(r, 20));
+      // 3
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start3' });
+      await new Promise(r => setTimeout(r, 20));
+    });
+
+    const failed = msgs.find((m) => m.type === 'task_failed');
+    expect(failed).toBeDefined();
+    expect(failed?.reason).toContain('Max YOLO attempts exceeded');
+  });
+
+  // ── 12. YOLO Mode: Silent Halting triggers nudge ───────────────────────────
+  it('headless YOLO mode: naturally ending without status triggers nudge', async () => {
+    agentBus.removeAllListeners();
+    worker = new AgentWorker(AGENT_CONFIG, '/tmp', 'headless');
+    await worker.start();
+
+    mockSendStream = () => makeStream([{ type: 'content', value: 'im done' }]);
+
+    const msgs = await collectOutbound(async () => {
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+    });
+
+    // In interactive, this would emit "done". In headless, doing this without report_status does NOT emit "done" immediately.
+    const done = msgs.find((m) => m.type === 'done');
+    expect(done).toBeUndefined();
+  });
+
+  // ── 13. YOLO Mode: Unintentional AbortError ────────────────────────────────
+  it('headless YOLO mode: AbortError emits task_failed', async () => {
+    agentBus.removeAllListeners();
+    worker = new AgentWorker(AGENT_CONFIG, '/tmp', 'headless');
+    await worker.start();
+
+    mockSendStream = async function* () {
+      const e = new Error('fetch aborted');
+      e.name = 'AbortError';
+      throw e;
+    };
+
+    const msgs = await collectOutbound(async () => {
+      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+    });
+
+    const failed = msgs.find((m) => m.type === 'task_failed');
+    expect(failed).toBeDefined();
+    expect(failed?.reason).toContain('Unintentional AbortError');
+  });
 });

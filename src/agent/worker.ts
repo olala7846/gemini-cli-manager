@@ -1,10 +1,11 @@
 import { GeminiCliAgent } from '@google/gemini-cli-sdk';
-import { subscribeInbound, publishOutbound } from '../protocol/bus.js';
+import { subscribeInbound, publishOutbound, publishInbound } from '../protocol/bus.js';
 import type { AgentConfig } from './registry.js';
 import type { GeminiCliSession } from '@google/gemini-cli-sdk';
 import { ReportStatusTool } from './statusTool.js';
 
 type WorkerState = 'INITIALIZED' | 'RUNNING' | 'PAUSED' | 'STOPPED';
+type WorkerMode = 'interactive' | 'headless';
 
 /** Prefix injected into the conversation history when resuming a paused task. */
 const RESUME_PREFIX = '[User Resumed Task]:';
@@ -14,14 +15,21 @@ export class AgentWorker {
   private session: GeminiCliSession | null = null;
   private config: AgentConfig;
   private cwd: string;
+  private mode: WorkerMode;
   private state: WorkerState = 'INITIALIZED';
+  private consecutiveInputNeeded = 0;
 
-  constructor(config: AgentConfig, cwd: string) {
+  constructor(config: AgentConfig, cwd: string, mode: WorkerMode = 'interactive') {
     this.config = config;
     this.cwd = cwd;
+    this.mode = mode;
 
     // We append a strict instruction to always use the tool
-    const augmentedPrompt = `${this.config.systemPrompt}\n\nCRITICAL SYSTEM INSTRUCTION: When you have finished your task, or if you are permanently blocked, you MUST call the \`report_status\` tool. Do not just print "blocked" or "completed" in text—you must invoke the tool with the appropriate state and reason.`;
+    let augmentedPrompt = `${this.config.systemPrompt}\n\nCRITICAL SYSTEM INSTRUCTION: When you have finished your task, or if you are permanently blocked, you MUST call the \`report_status\` tool. Do not just print "blocked" or "completed" in text—you must invoke the tool with the appropriate state and reason.`;
+
+    if (this.mode === 'headless') {
+      augmentedPrompt += `\n\n[CRITICAL INSTRUCTION] You are running in HEADLESS (YOLO) mode. There is no human available to provide input or clarification. You MUST use your best judgment to proceed, make reasonable assumptions when faced with ambiguity, and attempt to complete the main objective. Do NOT pause to ask for input.`;
+    }
 
     this.agent = new GeminiCliAgent({
       cwd: this.cwd,
@@ -89,9 +97,25 @@ export class AgentWorker {
             publishOutbound({ type: 'content', content: `\n[System Internal: ${systemAck}]\n`});
 
             if (state === 'INPUT_NEEDED') {
-              this.state = 'PAUSED';
-              publishOutbound({ type: 'input_needed', reason });
-              throw new Error('AGENT_PAUSED_INTENTIONALLY');
+              if (this.mode === 'headless') {
+                this.consecutiveInputNeeded++;
+                if (this.consecutiveInputNeeded >= 3) {
+                  this.state = 'STOPPED';
+                  publishOutbound({ type: 'task_failed', reason: 'Max YOLO attempts exceeded: Agent repeatedly asked for input in headless mode' });
+                  throw new Error('AGENT_STOPPED_INTENTIONALLY');
+                }
+                // Instead of pausing, we force a resume
+                setTimeout(() => {
+                  publishOutbound({ type: 'content', content: `\n[Headless Auto-Reply Injection]\n`});
+                  publishInbound({ type: 'resume_task', content: `[Headless Auto-Reply]: I am a scheduled job and cannot provide clarification. Please make your best guess, skip the problematic step if necessary, and proceed to complete the task as best as you can.` });
+                }, 10);
+                this.state = 'PAUSED';
+                throw new Error('AGENT_PAUSED_INTENTIONALLY');
+              } else {
+                this.state = 'PAUSED';
+                publishOutbound({ type: 'input_needed', reason });
+                throw new Error('AGENT_PAUSED_INTENTIONALLY');
+              }
             } else if (state === 'COMPLETED') {
               this.state = 'STOPPED';
               publishOutbound({ type: 'task_completed', reason });
@@ -101,6 +125,9 @@ export class AgentWorker {
               publishOutbound({ type: 'task_failed', reason });
               throw new Error('AGENT_STOPPED_INTENTIONALLY');
             }
+          } else {
+            // Reset YOLO counter if making progress with other tools
+            this.consecutiveInputNeeded = 0;
           }
 
           publishOutbound({
@@ -113,14 +140,33 @@ export class AgentWorker {
       
       // If the stream naturally finishes without the agent explicitly calling the status tool:
       if (this.state === 'RUNNING') {
-        publishOutbound({ type: 'done' });
+        if (this.mode === 'headless') {
+          // Silent halting mitigation: force a nudge to report status
+          this.consecutiveInputNeeded++;
+          if (this.consecutiveInputNeeded >= 3) {
+            this.state = 'STOPPED';
+            publishOutbound({ type: 'task_failed', reason: 'Max YOLO attempts exceeded during silent halting' });
+          } else {
+            setTimeout(() => {
+               publishInbound({ type: 'prompt', content: `[Headless Auto-Reply]: You finished your response but forgot to call report_status. Please call the report_status tool to officially complete or fail the task.` });
+            }, 10);
+          }
+        } else {
+          publishOutbound({ type: 'done' });
+        }
       }
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message === 'AGENT_PAUSED_INTENTIONALLY' || err.message === 'AGENT_STOPPED_INTENTIONALLY') {
+      if (err.message === 'AGENT_PAUSED_INTENTIONALLY' || err.message === 'AGENT_STOPPED_INTENTIONALLY') {
         // We intentionally aborted the stream to pause/stop the agent contextually.
         return;
       }
       this.state = 'STOPPED';
+      if (err.name === 'AbortError' || err.type === 'aborted') {
+        if (this.mode === 'headless') {
+           publishOutbound({ type: 'task_failed', reason: 'Unintentional AbortError during headless execution' });
+        }
+        return;
+      }
       // TODO: call session.close() here once the SDK exposes a teardown API
       publishOutbound({ type: 'error', content: err.message || 'Unknown error occurred' });
     }
