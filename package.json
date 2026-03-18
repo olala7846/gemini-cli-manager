@@ -40,6 +40,6 @@
   "dependencies": {
     "@google/gemini-cli-sdk": "file:../gemini-cli/packages/sdk",
     "ajv": "^8.18.0",
-    "zod": "3.25.76"
+    "zod": "^3.23.8"
   }
 }
