@@ -1,3 +1,6 @@
+---
+"Document Gardener Last Check YYYY-MM-DD-HH:MM": never
+---
 # GeminiClaw
 
 GeminiClaw is a specialized personal agent powered by the Gemini CLI. It acts as the core engine for a Claw-like personal assistant, equipped with persistent memory, robust session management, and intelligent agent routing.
@@ -13,9 +16,9 @@ GeminiClaw is a specialized personal agent powered by the Gemini CLI. It acts as
 
 Because the `@google/gemini-cli-sdk` is not publicly published to NPM, this project expects a local clone of the `gemini-cli` repository to be present in the parent directory.
 
-1. Clone the `gemini-cli` repository into your workspace alongside this project:
+1. Clone the `gemini-cli` repository into your workspace's reference directory:
    ```bash
-   cd ..
+   cd reference
    git clone git@github.com:google-gemini/gemini-cli.git
    ```
 2. Build the `gemini-cli` dependencies:
@@ -26,14 +29,14 @@ Because the `@google/gemini-cli-sdk` is not publicly published to NPM, this proj
    ```
 3. Return to this repository and install the local packages:
    ```bash
-   cd ../gemini-manager
+   cd ../branches/main
    npm install
    ```
 
 *(Optional)* If you also want to make the `gemini` CLI command available globally in your terminal, you can install it from source by creating a symlink. Run the following inside the `gemini-cli` directory:
 
 ```bash
-cd ../gemini-cli
+cd reference/gemini-cli
 sudo npm link
 ```
 

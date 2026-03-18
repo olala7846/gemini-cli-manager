@@ -1,0 +1,3 @@
+[submodule "reference/gemini-cli"]
+	path = reference/gemini-cli
+	url = git@github.com:google-gemini/gemini-cli.git

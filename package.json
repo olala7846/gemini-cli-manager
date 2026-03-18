@@ -38,7 +38,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
-    "@google/gemini-cli-sdk": "file:../gemini-cli/packages/sdk",
+    "@google/gemini-cli-sdk": "file:./reference/gemini-cli/packages/sdk",
     "ajv": "^8.18.0",
     "zod": "^3.23.8"
   }
