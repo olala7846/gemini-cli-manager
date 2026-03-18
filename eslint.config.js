@@ -49,7 +49,7 @@ export default tseslint.config(
     files: ['src/automation/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
-        patterns: [{ group: ['*channels*', '*gateway*'], message: 'Automation layer MUST NOT import from UI channels or gateway.' }]
+        patterns: [{ group: ['*channels*', '*core*'], message: 'Automation layer MUST NOT import from UI channels or Core. Use Gateway/Protocol instead.' }]
       }]
     }
   }

@@ -41,8 +41,8 @@ graph TD
     TG --> Gateway
     API --> Gateway
     CLI --> Gateway
+    Cron -->|Triggers Tasks| Gateway
     
-    Cron -->|Triggers| Agents
     Cron -->|Maintains| MemStore
     Cron -->|Process| TasksDB
 
