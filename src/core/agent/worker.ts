@@ -1,5 +1,6 @@
 import { GeminiCliAgent } from '@google/gemini-cli-sdk';
 import { subscribeInbound, publishOutbound, publishInbound } from '../../protocol/bus.js';
+import type { MessageMeta, OutboundMessage, InboundMessage } from '../../protocol/messages.js';
 import type { AgentConfig } from './registry.js';
 import type { GeminiCliSession } from '@google/gemini-cli-sdk';
 import { ReportStatusTool } from './statusTool.js';
@@ -26,6 +27,21 @@ export class AgentWorker {
   private mode: WorkerMode;
   private state: WorkerState = 'INITIALIZED';
   private consecutiveInputNeeded = 0;
+  private currentMeta: MessageMeta | null = null;
+
+  private publishOut(msg: any) {
+    publishOutbound({
+      meta: this.currentMeta || { sessionId: 'system', channel: 'automation' as const },
+      ...msg
+    } as OutboundMessage);
+  }
+
+  private publishIn(msg: any) {
+    publishInbound({
+      meta: this.currentMeta || { sessionId: 'system', channel: 'automation' as const },
+      ...msg
+    } as InboundMessage);
+  }
 
   constructor(config: AgentConfig, cwd: string, mode: WorkerMode = 'interactive') {
     this.config = config;
@@ -54,6 +70,7 @@ export class AgentWorker {
 
     // Listen to Pub/Sub events from the CLI
     subscribeInbound(async (msg) => {
+      this.currentMeta = msg.meta;
       if (msg.type === 'prompt') {
         await this.handlePrompt(msg.content);
       } else if (msg.type === 'resume_task') {
@@ -64,12 +81,12 @@ export class AgentWorker {
     });
 
     this.state = 'RUNNING';
-    publishOutbound({ type: 'content', content: `[System] ${this.config.id} initialized in ${this.cwd}\n\n` });
+    this.publishOut({ type: 'content', content: `[System] ${this.config.id} initialized in ${this.cwd}\n\n` });
   }
 
   private async handleResume(content: string) {
     if (this.state !== 'PAUSED') {
-      publishOutbound({ type: 'error', content: 'Cannot resume a task that is not currently PAUSED.' });
+      this.publishOut({ type: 'error', content: 'Cannot resume a task that is not currently PAUSED.' });
       return;
     }
 
@@ -91,7 +108,7 @@ export class AgentWorker {
         if (event.type === 'content') {
           const text = event.value;
           if (text) {
-            publishOutbound({ type: 'content', content: text });
+            this.publishOut({ type: 'content', content: text });
           }
         } else if (event.type === 'tool_call_request') {
           const toolName = event.value?.name;
@@ -102,14 +119,14 @@ export class AgentWorker {
             const reason = toolArgs?.reason as string;
 
             const systemAck = await ReportStatusTool.action({ state, reason });
-            publishOutbound({ type: 'content', content: `\n[System Internal: ${systemAck}]\n` });
+            this.publishOut({ type: 'content', content: `\n[System Internal: ${systemAck}]\n` });
 
             if (state === 'INPUT_NEEDED') {
               if (this.mode === 'headless') {
                 this.consecutiveInputNeeded++;
                 if (this.consecutiveInputNeeded >= MAX_HEADLESS_ATTEMPTS) {
                   this.state = 'STOPPED';
-                  publishOutbound({
+                  this.publishOut({
                     type: 'task_failed',
                     reason: YOLO_ATTEMPTS_EXCEEDED_REASON
                   });
@@ -117,8 +134,8 @@ export class AgentWorker {
                 }
                 // Instead of pausing, we force a resume
                 setTimeout(() => {
-                  publishOutbound({ type: 'content', content: `\n[Headless Auto-Reply Injection]\n` });
-                  publishInbound({
+                  this.publishOut({ type: 'content', content: `\n[Headless Auto-Reply Injection]\n` });
+                  this.publishIn({
                     type: 'resume_task',
                     content: HEADLESS_AUTO_REPLY_PROMPT
                   });
@@ -127,16 +144,16 @@ export class AgentWorker {
                 throw new Error('AGENT_PAUSED_INTENTIONALLY');
               } else {
                 this.state = 'PAUSED';
-                publishOutbound({ type: 'input_needed', reason });
+                this.publishOut({ type: 'input_needed', reason });
                 throw new Error('AGENT_PAUSED_INTENTIONALLY');
               }
             } else if (state === 'COMPLETED') {
               this.state = 'STOPPED';
-              publishOutbound({ type: 'task_completed', reason });
+              this.publishOut({ type: 'task_completed', reason });
               throw new Error('AGENT_STOPPED_INTENTIONALLY');
             } else if (state === 'FAILED') {
               this.state = 'STOPPED';
-              publishOutbound({ type: 'task_failed', reason });
+              this.publishOut({ type: 'task_failed', reason });
               throw new Error('AGENT_STOPPED_INTENTIONALLY');
             }
           } else {
@@ -144,7 +161,7 @@ export class AgentWorker {
             this.consecutiveInputNeeded = 0;
           }
 
-          publishOutbound({
+          this.publishOut({
             type: 'tool_call',
             toolName,
             toolArgs
@@ -159,17 +176,17 @@ export class AgentWorker {
           this.consecutiveInputNeeded++;
           if (this.consecutiveInputNeeded >= MAX_HEADLESS_ATTEMPTS) {
             this.state = 'STOPPED';
-            publishOutbound({ type: 'task_failed', reason: SILENT_HALTING_EXCEEDED_REASON });
+            this.publishOut({ type: 'task_failed', reason: SILENT_HALTING_EXCEEDED_REASON });
           } else {
             setTimeout(() => {
-              publishInbound({
+              this.publishIn({
                 type: 'prompt',
                 content: SILENT_HALTING_NUDGE_PROMPT
               });
             }, HEADLESS_REPLY_DELAY_MS);
           }
         } else {
-          publishOutbound({ type: 'done' });
+          this.publishOut({ type: 'done' });
         }
       }
     } catch (err: any) {
@@ -180,11 +197,11 @@ export class AgentWorker {
       this.state = 'STOPPED';
       if (err.name === 'AbortError' || err.type === 'aborted') {
         if (this.mode === 'headless') {
-          publishOutbound({ type: 'task_failed', reason: 'Unintentional AbortError during headless execution' });
+          this.publishOut({ type: 'task_failed', reason: 'Unintentional AbortError during headless execution' });
         }
         return;
       }
-      publishOutbound({ type: 'error', content: err.message || 'Unknown error occurred' });
+      this.publishOut({ type: 'error', content: err.message || 'Unknown error occurred' });
     }
   }
 }

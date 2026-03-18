@@ -31,11 +31,12 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
 
       if (input) {
         expectingResponse = true;
+        const meta = { sessionId: 'local-cli', channel: 'cli' as const };
         if (isPaused) {
           isPaused = false;
-          publishInbound({ type: 'resume_task', content: input });
+          publishInbound({ meta, type: 'resume_task', content: input });
         } else {
-          publishInbound({ type: 'prompt', content: input });
+          publishInbound({ meta, type: 'prompt', content: input });
         }
       } else {
         try {
@@ -110,9 +111,11 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
     }
   });
 
+  const meta = { sessionId: 'local-cli', channel: 'cli' as const };
+
   if (initialPrompt) {
     expectingResponse = true;
-    publishInbound({ type: 'prompt', content: initialPrompt });
+    publishInbound({ meta, type: 'prompt', content: initialPrompt });
   } else {
     ensureRl();
     try {
