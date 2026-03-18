@@ -1,0 +1,56 @@
+name: CI Checks
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GeminiClaw (Manager)
+        uses: actions/checkout@v4
+        with:
+          path: gemini-manager
+
+      - name: Checkout Gemini CLI SDK (Dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: google-gemini/gemini-cli
+          path: gemini-cli
+          # NOTE: If google-gemini/gemini-cli is a private repository, you will need to uncomment 
+          # the 'token' line below and provide a GitHub PAT via Repository Secrets.
+          # token: ${{ secrets.GH_PAT_SDK_ACCESS }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Bootstrap gemini-cli SDK
+        working-directory: gemini-cli
+        run: |
+          npm install
+          npm run build
+
+      - name: Install GeminiClaw Dependencies
+        working-directory: gemini-manager
+        run: npm ci
+
+      - name: Format & Architecture Boundary Check
+        working-directory: gemini-manager
+        run: npm run lint
+
+      - name: Unit Tests
+        working-directory: gemini-manager
+        run: npm run test
+
+      - name: Integration Tests
+        working-directory: gemini-manager
+        # The test runner skips automatically if GEMINI_API_KEY is not defined.
+        # Add a GEMINI_API_KEY repository secret to actually execute these in CI.
+        run: npm run test:integration
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
