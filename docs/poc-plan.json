@@ -1,112 +1,27 @@
-{
-  "gateway": [
-    {
-      "description": "Initialize Express web server with basic health-check endpoint",
-      "status": "failing",
-      "requirement": "implement express server in src/gateway/"
-    },
-    {
-      "description": "Set up the in-memory Event Emitter (EventEmitter2 or native)",
-      "status": "failing",
-      "requirement": "implement event bus for internal messaging"
-    },
-    {
-      "description": "Create a GatewayRouter class that listens to HTTP POST requests and emits standardized internal events (e.g., MessageReceived)",
-      "status": "failing",
-      "requirement": "implement route handlers and map them to event emissions"
-    },
-    {
-      "description": "Deliverable: A running Express server that successfully logs incoming webhook payloads and emits them internally",
-      "status": "failing",
-      "requirement": "verify end-to-end local HTTP reception"
-    }
-  ],
-  "channels": [
-    {
-      "description": "Install and configure the grammY library",
-      "status": "failing",
-      "requirement": "add grammY dependency and initialize bot"
-    },
-    {
-      "description": "Create a TelegramChannel class responsible for registering webhooks with the telegram API",
-      "status": "failing",
-      "requirement": "implement telegram webhook integration in src/channels/"
-    },
-    {
-      "description": "Map Telegram specific structures to the internal MessageReceived event",
-      "status": "failing",
-      "requirement": "normalize telegram updates to internal schema"
-    },
-    {
-      "description": "Deliverable: The Gateway can successfully receive a message sent from a real Telegram client",
-      "status": "failing",
-      "requirement": "verify telegram to gateway flow"
-    }
-  ],
-  "storage": [
-    {
-      "description": "Create a SessionStore interface and a JsonSessionStore implementation",
-      "status": "failing",
-      "requirement": "implement json file storage adapter in src/storage/"
-    },
-    {
-      "description": "Implement getChatHistory(userId) and appendMessage(userId, message) methods",
-      "status": "failing",
-      "requirement": "implement read/write logic for session history"
-    },
-    {
-      "description": "Ensure proper-lockfile (or similar) is used to prevent concurrent write corruption",
-      "status": "failing",
-      "requirement": "implement file locking for safety"
-    },
-    {
-      "description": "Deliverable: Messages sent via Telegram are successfully saved and appended to a sessions/<user_id>.json file on disk",
-      "status": "failing",
-      "requirement": "verify successful disk persistence"
-    }
-  ],
-  "engine": [
-    {
-      "description": "Create a GeminiAgentWorker class that subscribes to the MessageReceived event on the Event Bus",
-      "status": "failing",
-      "requirement": "implement worker listening to internal bus in src/engine/"
-    },
-    {
-      "description": "Implement initialization logic to boot up the @google/gemini-cli-sdk",
-      "status": "failing",
-      "requirement": "integrate gemini CLI sdk"
-    },
-    {
-      "description": "Pass the retrieved chat history (from SessionStore) into the Gemini context",
-      "status": "failing",
-      "requirement": "load prior context before generation"
-    },
-    {
-      "description": "Process the LLM generation using the Gemini 2.5 Flash model",
-      "status": "failing",
-      "requirement": "execute generation and handle output"
-    },
-    {
-      "description": "Deliverable: The agent successfully generates a response based on the prompt + JSON history",
-      "status": "failing",
-      "requirement": "verify llm output is generated from input"
-    }
-  ],
-  "reverse_routing": [
-    {
-      "description": "The GeminiAgentWorker emits an AgentResponse event back to the Event Bus",
-      "status": "failing",
-      "requirement": "emit response event out of the engine"
-    },
-    {
-      "description": "The TelegramChannel listens for AgentResponse and dispatches the text back to the Telegram API",
-      "status": "failing",
-      "requirement": "send response payload back to telegram via grammY"
-    },
-    {
-      "description": "Deliverable (E2E): A user sends a message on Telegram, the system routes it, persists it, processes it via Gemini, and replies back on Telegram with conversational awareness",
-      "status": "failing",
-      "requirement": "verify full bidirectional e2e flow"
-    }
-  ]
-}
+[
+  {
+    "description": "Complete Protocol PoC",
+    "status": "failing",
+    "requirement": "All subtasks outlined in src/protocol/poc-plan.json are marked as completed"
+  },
+  {
+    "description": "Complete Gateway PoC",
+    "status": "failing",
+    "requirement": "All subtasks outlined in src/gateway/poc-plan.json are marked as completed"
+  },
+  {
+    "description": "Complete Core PoC",
+    "status": "failing",
+    "requirement": "All subtasks outlined in src/core/poc-plan.json are marked as completed"
+  },
+  {
+    "description": "Complete Channels PoC",
+    "status": "failing",
+    "requirement": "All subtasks outlined in src/channels/poc-plan.json are marked as completed"
+  },
+  {
+    "description": "Complete Automation PoC",
+    "status": "failing",
+    "requirement": "All subtasks outlined in src/automation/poc-plan.json are marked as completed"
+  }
+]

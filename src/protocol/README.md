@@ -1,6 +1,6 @@
-# Source Component: `protocol`
+# Protocol Layer (`src/protocol/`)
 
-This directory acts as the central hub connecting the separated Front-End (`cli`) and Back-End (`agent`) systems. It guarantees that the two sides remain entirely decoupled.
+This directory acts as the central asynchronous Event Bus interconnecting all components. It guarantees that the subsystems remain entirely decoupled.
 
 ## Core Responsibilities
 - **`bus.ts`**: An abstract `EventEmitter` singleton called `agentBus`. It exposes strongly typed publish and subscribe hooks for `INBOUND` and `OUTBOUND` traffic.

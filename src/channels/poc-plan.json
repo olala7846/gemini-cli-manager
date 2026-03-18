@@ -1,0 +1,32 @@
+[
+  {
+    "description": "Install and configure the grammY library",
+    "status": "failing",
+    "requirement": "add grammY dependency and initialize bot"
+  },
+  {
+    "description": "Create a TelegramChannel class responsible for registering webhooks with the telegram API",
+    "status": "failing",
+    "requirement": "implement telegram webhook integration in src/channels/"
+  },
+  {
+    "description": "Map Telegram specific structures to the internal MessageReceived event",
+    "status": "failing",
+    "requirement": "normalize telegram updates to internal schema"
+  },
+  {
+    "description": "Deliverable: The Gateway can successfully receive a message sent from a real Telegram client",
+    "status": "failing",
+    "requirement": "verify telegram to gateway flow"
+  },
+  {
+    "description": "The TelegramChannel listens for AgentResponse and dispatches the text back to the Telegram API",
+    "status": "failing",
+    "requirement": "send response payload back to telegram via grammY"
+  },
+  {
+    "description": "Deliverable (E2E): A user sends a message on Telegram, the system routes it, persists it, processes it via Gemini, and replies back on Telegram with conversational awareness",
+    "status": "failing",
+    "requirement": "verify full bidirectional e2e flow"
+  }
+]

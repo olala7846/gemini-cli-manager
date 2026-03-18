@@ -1,0 +1,17 @@
+[
+  {
+    "description": "Initialize Express web server with basic health-check endpoint",
+    "status": "failing",
+    "requirement": "implement express server in src/gateway/"
+  },
+  {
+    "description": "Create a GatewayRouter class that listens to HTTP POST requests and emits standardized internal events (e.g., MessageReceived)",
+    "status": "failing",
+    "requirement": "implement route handlers and map them to event emissions"
+  },
+  {
+    "description": "Deliverable: A running Express server that successfully logs incoming webhook payloads and emits them internally",
+    "status": "failing",
+    "requirement": "verify end-to-end local HTTP reception"
+  }
+]

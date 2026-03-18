@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { agentBus } from '../protocol/bus.js';
-import type { OutboundMessage } from '../protocol/messages.js';
+import { agentBus } from '../../protocol/bus.js';
+import type { OutboundMessage } from '../../protocol/messages.js';
 
 // ─── Mock the SDK before importing AgentWorker ────────────────────────────────
 // GeminiCliAgent is used with `new`, so the mock must be a real constructor.

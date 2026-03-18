@@ -39,7 +39,21 @@ sudo npm link
 
 ## Usage
 
-*(Usage instructions to be updated as the new GeminiClaw architecture evolves.)*
+You can test the latest interactive CLI environment by running the local bootstrap command:
+```bash
+npm run start:cli -- <agent-id> --prompt "Hello Gemini"
+```
+
+## Architecture Overview
+
+GeminiClaw enforces a strict, unidirectional architecture utilizing an Inversion of Control paradigm. Dependencies flow exclusively inward toward the protocol bus, algorithmically protected by ESLint.
+
+- **`src/protocol/`**: The internal Event Bus and strictly-typed message contracts. Contains zero dependencies.
+- **`src/core/`**: The system's brain. Orchestrates the Gemini CLI workers, persists session memory, and handles intelligent execution.
+- **`src/gateway/`**: The traffic router. Normalizes inbound requests and routes them to the appropriate Core agents. 
+- **`src/channels/`**: The external I/O integrations (CLI, Telegram, APIs).
+- **`src/automation/`**: Background CRON scheduling and task queuing for data maintenance.
+- **`src/bin/`**: The orchestration layer. These are the only executable files allowed to safely bypass boundaries to instantiate the application (e.g., `src/bin/cli.ts`).
 
 ## Roadmap & Progress Tracking
 

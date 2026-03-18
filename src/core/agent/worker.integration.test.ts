@@ -13,8 +13,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AgentWorker } from './worker.js';
-import { agentBus, publishInbound } from '../protocol/bus.js';
-import type { OutboundMessage } from '../protocol/messages.js';
+import { agentBus, publishInbound } from '../../protocol/bus.js';
+import type { OutboundMessage } from '../../protocol/messages.js';
 
 // ─── Skip if no API key ───────────────────────────────────────────────────────
 const SKIP = !process.env.GEMINI_API_KEY;

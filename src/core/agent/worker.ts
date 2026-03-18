@@ -1,5 +1,5 @@
 import { GeminiCliAgent } from '@google/gemini-cli-sdk';
-import { subscribeInbound, publishOutbound, publishInbound } from '../protocol/bus.js';
+import { subscribeInbound, publishOutbound, publishInbound } from '../../protocol/bus.js';
 import type { AgentConfig } from './registry.js';
 import type { GeminiCliSession } from '@google/gemini-cli-sdk';
 import { ReportStatusTool } from './statusTool.js';
