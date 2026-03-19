@@ -1,7 +1,7 @@
 [
   {
     "description": "Complete Protocol PoC",
-    "status": "failing",
+    "status": "completed",
     "requirement": "All subtasks outlined in src/protocol/poc-plan.json are marked as completed"
   },
   {
