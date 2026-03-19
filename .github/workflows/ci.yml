@@ -32,7 +32,7 @@ jobs:
 
       - name: Install GeminiClaw Dependencies
         working-directory: gemini-manager
-        run: npm ci
+        run: npm install
 
       - name: Format & Architecture Boundary Check
         working-directory: gemini-manager
