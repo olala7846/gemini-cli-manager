@@ -4,8 +4,9 @@ You are interacting with the `gemini-manager` repository. Your goal is to respec
 
 ## Pre-Flight Checks
 Before starting to build *any* features, you MUST:
-1. **Verify Architectural Boundaries:** Run `npm run lint` to run the strict unidirectional dependency checks. If the linter is failing due to `no-restricted-imports` violations, you MUST halt and fix the boundaries immediately.
-2. **Verify Tests:** Run `npm run test` to ensure all existing unit and integration tests are passing.
+1. **Initialize Environment:** Run `./init.sh` to ensure all NPM dependencies and local SDK symlinks are correctly established. Do this before making any code changes.
+2. **Verify Architectural Boundaries:** Run `npm run lint` to run the strict unidirectional dependency checks. If the linter is failing due to `no-restricted-imports` violations, you MUST halt and fix the boundaries immediately.
+3. **Verify Tests:** Run `npm run test` to ensure all existing unit and integration tests are passing.
 
 ## High-Level Architecture
 `gemini-manager` is a headless, programmatic wrapper around the `@google/gemini-cli-sdk`. Its primary purpose is to bypass the CLI's standard terminal UI, allowing us to orchestrate the LLM, inject custom tools (like status reporting), and handle inputs/outputs programmatically.

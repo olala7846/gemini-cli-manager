@@ -4,10 +4,10 @@ import type { OutboundMessage } from '../../protocol/messages.js';
 
 // ─── Mock the SDK before importing AgentWorker ────────────────────────────────
 // GeminiCliAgent is used with `new`, so the mock must be a real constructor.
-let mockSendStream: () => AsyncGenerator<any>;
+let mockSendStream: () => AsyncGenerator<unknown>;
 
 vi.mock('@google/gemini-cli-sdk', () => {
-  const GeminiCliAgent = vi.fn(function (this: any) {
+  const GeminiCliAgent = vi.fn(function (this: { session: () => unknown }) {
     this.session = () => ({
       initialize: vi.fn().mockResolvedValue(undefined),
       sendStream: () => mockSendStream()
@@ -21,7 +21,7 @@ const { AgentWorker, MAX_HEADLESS_ATTEMPTS } = await import('./worker.js');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function* makeStream(events: any[]): AsyncGenerator<any> {
+async function* makeStream(events: unknown[]): AsyncGenerator<unknown> {
   for (const evt of events) yield evt;
 }
 
@@ -71,7 +71,7 @@ describe('AgentWorker — unit tests', () => {
       ]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'hi' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'hi' });
     });
 
     const content = msgs.filter((m) => m.type === 'content');
@@ -90,7 +90,11 @@ describe('AgentWorker — unit tests', () => {
       ]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start'
+      });
     });
 
     const inputNeeded = msgs.find((m) => m.type === 'input_needed');
@@ -109,7 +113,11 @@ describe('AgentWorker — unit tests', () => {
         }
       ]);
     await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start'
+      });
     });
 
     // Now send a plain prompt — should produce no content or done
@@ -117,7 +125,11 @@ describe('AgentWorker — unit tests', () => {
     mockSendStream = sendStreamSpy;
 
     await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'ignored' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'ignored'
+      });
     });
 
     expect(sendStreamSpy).not.toHaveBeenCalled();
@@ -134,7 +146,11 @@ describe('AgentWorker — unit tests', () => {
         }
       ]);
     await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start'
+      });
     });
 
     // Now resume
@@ -145,7 +161,11 @@ describe('AgentWorker — unit tests', () => {
     };
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'resume_task', content: 'my answer' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'resume_task',
+        content: 'my answer'
+      });
     });
 
     // Should emit content from the resumed stream
@@ -157,7 +177,11 @@ describe('AgentWorker — unit tests', () => {
     mockSendStream = () => makeStream([]); // unused
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'resume_task', content: 'oops' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'resume_task',
+        content: 'oops'
+      });
     });
 
     const err = msgs.find((m) => m.type === 'error');
@@ -176,7 +200,7 @@ describe('AgentWorker — unit tests', () => {
       ]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'go' });
     });
 
     const completed = msgs.find((m) => m.type === 'task_completed');
@@ -195,7 +219,7 @@ describe('AgentWorker — unit tests', () => {
       ]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'go' });
     });
 
     const failed = msgs.find((m) => m.type === 'task_failed');
@@ -211,7 +235,7 @@ describe('AgentWorker — unit tests', () => {
     };
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'go' });
     });
 
     const err = msgs.find((m) => m.type === 'error');
@@ -229,7 +253,7 @@ describe('AgentWorker — unit tests', () => {
     };
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'go' });
     });
 
     expect(msgs.find((m) => m.type === 'error')).toBeUndefined();
@@ -250,7 +274,11 @@ describe('AgentWorker — unit tests', () => {
       ]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start'
+      });
     });
 
     // It should have injected an auto-reply inward, which means no input_needed was sent out outward.
@@ -283,13 +311,25 @@ describe('AgentWorker — unit tests', () => {
     // Force three inputs
     const msgs = await collectOutbound(async () => {
       // 1
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start1' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start1'
+      });
       await new Promise((r) => setTimeout(r, 20));
       // 2
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start2' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start2'
+      });
       await new Promise((r) => setTimeout(r, 20));
       // 3
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start3' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start3'
+      });
       await new Promise((r) => setTimeout(r, 20));
     });
 
@@ -307,7 +347,11 @@ describe('AgentWorker — unit tests', () => {
     mockSendStream = () => makeStream([{ type: 'content', value: 'im done' }]);
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'start' });
+      agentBus.emit('agent.inbound', {
+        meta: { sessionId: 'default', channel: 'cli' },
+        type: 'prompt',
+        content: 'start'
+      });
     });
 
     // In interactive, this would emit "done". In headless, doing this without report_status does NOT emit "done" immediately.
@@ -329,7 +373,7 @@ describe('AgentWorker — unit tests', () => {
     };
 
     const msgs = await collectOutbound(async () => {
-      agentBus.emit('agent.inbound', { type: 'prompt', content: 'go' });
+      agentBus.emit('agent.inbound', { meta: { sessionId: 'default', channel: 'cli' }, type: 'prompt', content: 'go' });
     });
 
     const failed = msgs.find((m) => m.type === 'task_failed');

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { agentBus, publishInbound, publishOutbound, subscribeInbound, subscribeOutbound, Topic } from './bus.js';
+import { agentBus, publishInbound, publishOutbound, Topic } from './bus.js';
+import type { InboundMessage, OutboundMessage } from './messages.js';
 
 describe('Protocol Bus', () => {
   it('publishInbound triggers subscribeInbound handlers', () => {
-    const received: any[] = [];
+    const received: InboundMessage[] = [];
     agentBus.once(Topic.INBOUND, (msg) => received.push(msg));
     publishInbound({ meta: { sessionId: 'test', channel: 'automation' }, type: 'prompt', content: 'hello' });
     expect(received).toHaveLength(1);
@@ -15,7 +16,7 @@ describe('Protocol Bus', () => {
   });
 
   it('publishOutbound triggers subscribeOutbound handlers', () => {
-    const received: any[] = [];
+    const received: OutboundMessage[] = [];
     agentBus.once(Topic.OUTBOUND, (msg) => received.push(msg));
     publishOutbound({ meta: { sessionId: 'test', channel: 'automation' }, type: 'done' });
     expect(received).toHaveLength(1);

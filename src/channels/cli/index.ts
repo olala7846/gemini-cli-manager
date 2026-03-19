@@ -41,13 +41,13 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
       } else {
         try {
           rl?.prompt();
-        } catch (_e) {
+        } catch {
           /* ignore */
         }
       }
     });
 
-    newRl.on('error', (err: any) => {
+    newRl.on('error', (err: Error & { type?: string }) => {
       if (err.name === 'AbortError' || err.type === 'aborted') return;
       console.error('\n[Readline Error]:', err);
     });
@@ -58,7 +58,7 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
   function ensureRl() {
     if (isHeadless) return;
     // readline.Interface exposes .closed at runtime (Node ≥ 18.6) but @types/node omits it; cast to access it.
-    if (rl && (rl as any).closed) {
+    if (rl && (rl as readline.Interface & { closed?: boolean }).closed) {
       rl = createRL();
     }
   }
@@ -69,7 +69,7 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
     ensureRl();
     try {
       rl?.prompt();
-    } catch (_e) {
+    } catch {
       /* ignore */
     }
   }
@@ -120,7 +120,7 @@ export function runCLI(isHeadless: boolean, initialPrompt?: string) {
     ensureRl();
     try {
       rl?.prompt();
-    } catch (_e) {
+    } catch {
       /* ignore */
     }
   }

@@ -1,10 +1,11 @@
 import { getAgentConfig, getPredefinedPrompt } from '../core/agent/registry.js';
 import { AgentWorker } from '../core/agent/worker.js';
 import { runCLI } from '../channels/cli/index.js';
+import { GatewayRouter } from '../gateway/router.js';
 
 // Intercept globally escaping AbortErrors from node-fetch dropping stream connections.
 // TODO: remove this handler once the SDK catches AbortErrors internally at the stream level.
-process.on('uncaughtException', (err: any) => {
+process.on('uncaughtException', (err: Error & { type?: string }) => {
   if (err.name === 'AbortError' || err.type === 'aborted') {
     return; // Safely ignore, this happens when we purposefully abort the agent session stream
   }
@@ -44,10 +45,13 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Boot up the LLM Worker (Core)
-  const config = getAgentConfig(agentId);
-  const worker = new AgentWorker(config, cwd, isHeadless ? 'headless' : 'interactive');
-  await worker.start();
+  // 1. Boot up the Gateway Router
+  const gateway = new GatewayRouter(agentId, ['cli', 'telegram']);
+  gateway.onWorkerRequested(async ({ sessionId, personaId, mode }) => {
+    const config = getAgentConfig(personaId);
+    const worker = new AgentWorker(config, cwd, mode, sessionId);
+    await worker.start();
+  });
 
   // 2. Boot up the CLI Interface (Channels)
   runCLI(isHeadless, initialPrompt);
