@@ -129,7 +129,7 @@ The automation trigger that acts as the "Cron/Queue".
 
 ## 3. Implementation Checklist
 
-- [ ] Install missing dependencies (e.g. `bullmq` if opting for full implementation, or skip if stubbing). (Resolves **1.1**)
+- [x] Install missing dependencies (e.g. `bullmq` if opting for full implementation, or skip if stubbing). (Resolves **1.1**)
 - [ ] **Gateway Layer (Resolves 1.2)**
   - [ ] Create `src/gateway/router.ts`.
   - [ ] Implement `GatewayRouter` logic to intercept `session_start`/`prompt` from the bus.
