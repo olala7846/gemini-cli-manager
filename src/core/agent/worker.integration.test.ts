@@ -71,7 +71,7 @@ maybeDescribe('AgentWorker — integration tests (real Gemini API)', () => {
 
   beforeEach(async () => {
     agentBus.removeAllListeners();
-    worker = new AgentWorker(TEST_AGENT_CONFIG, tmpdir());
+    worker = new AgentWorker(TEST_AGENT_CONFIG, tmpdir(), 'interactive', 'test-session');
     await worker.start();
   });
 
