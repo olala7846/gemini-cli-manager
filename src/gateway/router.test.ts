@@ -10,7 +10,6 @@ vi.mock('../protocol/bus.js', () => mockBus);
 // Need to import dynamically after mocking
 import { GatewayRouter } from './router.js';
 import type { InboundMessage } from '../protocol/messages.js';
-import { setTimeout } from 'node:timers/promises';
 
 describe('GatewayRouter', () => {
   let inboundHandler: (msg: InboundMessage) => Promise<void>;
@@ -64,8 +63,7 @@ describe('GatewayRouter', () => {
       mode: 'interactive'
     });
 
-    // A prompt initiating the session should be re-emitted to bus after delay
-    await setTimeout(10);
+    // A prompt initiating the session should be re-emitted to bus
     expect(mockBus.publishInbound).toHaveBeenCalledTimes(1);
     expect(mockBus.publishInbound).toHaveBeenCalledWith(expect.objectContaining({ type: 'prompt' }));
   });
@@ -92,7 +90,6 @@ describe('GatewayRouter', () => {
     expect(mockHandler).toHaveBeenCalledTimes(1);
 
     // And NO re-emit for the second prompt because it was not the session starter
-    await setTimeout(10);
     expect(mockBus.publishInbound).not.toHaveBeenCalled();
   });
 });

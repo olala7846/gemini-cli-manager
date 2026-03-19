@@ -1,6 +1,5 @@
-import { subscribeInbound, publishInbound } from '../protocol/bus.js';
+import { subscribeInbound, publishInbound, publishOutbound } from '../protocol/bus.js';
 import type { InboundMessage } from '../protocol/messages.js';
-import { setTimeout } from 'node:timers/promises';
 
 export type WorkerRequest = {
   sessionId: string;
@@ -11,10 +10,12 @@ export type WorkerRequest = {
 export class GatewayRouter {
   private activeSessions = new Set<string>();
   private defaultAgentId: string;
+  private interactiveChannels: string[];
   private workerRequestHandler: ((req: WorkerRequest) => Promise<void>) | null = null;
 
-  constructor(defaultAgentId: string) {
+  constructor(defaultAgentId: string, interactiveChannels: string[] = ['cli', 'telegram']) {
     this.defaultAgentId = defaultAgentId;
+    this.interactiveChannels = interactiveChannels;
 
     subscribeInbound(async (msg: InboundMessage) => {
       await this.handleInbound(msg);
@@ -36,7 +37,7 @@ export class GatewayRouter {
         personaId = msg.persona;
       }
 
-      const mode = channel === 'cli' || channel === 'telegram' ? 'interactive' : 'headless';
+      const mode = this.interactiveChannels.includes(channel) ? 'interactive' : 'headless';
 
       if (this.workerRequestHandler) {
         try {
@@ -44,7 +45,11 @@ export class GatewayRouter {
           this.activeSessions.add(sessionId);
           // Silent logging internally to not disrupt CLI too much
         } catch (err: any) {
-          console.error(`\n[Gateway Error] Failed to start agent worker: ${err.message}\n`);
+          publishOutbound({
+            meta: msg.meta,
+            type: 'error',
+            content: `[Gateway Error] Failed to start agent worker: ${err.message}`
+          });
           return;
         }
       }
@@ -52,7 +57,6 @@ export class GatewayRouter {
 
     if (isNewSession && msg.type !== 'session_start') {
       // Re-emit the original prompt/resume_task so the newly subscribed worker receives it.
-      await setTimeout(0); // macroscopic yield
       publishInbound(msg);
     }
   }

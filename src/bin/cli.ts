@@ -46,7 +46,7 @@ async function main() {
   }
 
   // 1. Boot up the Gateway Router
-  const gateway = new GatewayRouter(agentId);
+  const gateway = new GatewayRouter(agentId, ['cli', 'telegram']);
   gateway.onWorkerRequested(async ({ sessionId, personaId, mode }) => {
     const config = getAgentConfig(personaId);
     const worker = new AgentWorker(config, cwd, mode, sessionId);
