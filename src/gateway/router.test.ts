@@ -92,4 +92,48 @@ describe('GatewayRouter', () => {
     // And NO re-emit for the second prompt because it was not the session starter
     expect(mockBus.publishInbound).not.toHaveBeenCalled();
   });
+
+  it('should queue concurrent messages while worker initializes and safely re-emit them', async () => {
+    const router = new GatewayRouter('fallback-agent');
+
+    // Simulate a slow worker initialization
+    let resolveWorker: () => void;
+    const workerPromise = new Promise<void>((r) => {
+      resolveWorker = r;
+    });
+    const mockHandler = vi.fn().mockReturnValue(workerPromise);
+    router.onWorkerRequested(mockHandler);
+
+    // Fire the initial session start
+    const startPromise = inboundHandler({
+      type: 'session_start',
+      meta: { sessionId: 'race-session', channel: 'api' }
+    } as InboundMessage);
+
+    // Fire a concurrent prompt message milliseconds later
+    const promptPromise = inboundHandler({
+      type: 'prompt',
+      content: 'hello concurrent',
+      meta: { sessionId: 'race-session', channel: 'api' }
+    } as InboundMessage);
+
+    // The router must only instantiate ONE worker
+    expect(mockHandler).toHaveBeenCalledTimes(1);
+
+    // Before the worker boots, nothing should have leaked onto the event bus
+    expect(mockBus.publishInbound).not.toHaveBeenCalled();
+
+    // Resolve the slow boot
+    resolveWorker!();
+    await Promise.all([startPromise, promptPromise]);
+
+    // The prompt message that stalled inside the pendingSessions block must be re-published flawlessly
+    expect(mockBus.publishInbound).toHaveBeenCalledTimes(1);
+    expect(mockBus.publishInbound).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'prompt', content: 'hello concurrent' })
+    );
+
+    // And it definitely shouldn't restart the worker again
+    expect(mockHandler).toHaveBeenCalledTimes(1);
+  });
 });
