@@ -8,6 +8,8 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "start:cli": "tsx src/bin/cli.ts",
+    "start:worker": "tsx src/bin/worker.ts",
+    "schedule": "tsx src/bin/schedule.ts",
     "prepare": "husky",
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",

@@ -39,6 +39,8 @@ export function startTaskWorker() {
             agentBus.off(Topic.OUTBOUND, listener);
             const reason = msg.type === 'task_failed' ? msg.reason : msg.content;
             reject(new Error(`Agent task failed: ${reason}`));
+          } else if (msg.type === 'content') {
+            console.log(`[Agent] ${msg.content}`);
           }
         };
 
@@ -80,8 +82,9 @@ export function startTaskWorker() {
 /**
  * Utility function to dispatch an automation background task payload into the queue.
  */
-export async function scheduleTask(payload: AgentTaskPayload) {
+export async function scheduleTask(payload: AgentTaskPayload, delayMs?: number) {
   return taskQueue.add('agent-task', payload, {
+    ...(delayMs !== undefined ? { delay: delayMs } : {}),
     attempts: 3,
     backoff: { type: 'exponential', delay: 1000 }
   });

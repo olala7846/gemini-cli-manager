@@ -13,19 +13,25 @@ export interface AgentConfig {
 
 let loadedAgents: Record<string, AgentConfig> | null = null;
 let loadedPrompts: Record<string, string> | null = null;
+let defaultPersonaId: string | null = null;
 
 export function loadRegistry(configPath = path.join(process.cwd(), 'agents.json')): void {
   if (!fs.existsSync(configPath)) {
     throw new Error(`Agent configuration file not found at: ${configPath}`);
   }
   const rawData = fs.readFileSync(configPath, 'utf-8');
-  const parsed = JSON.parse(rawData) as { agents: AgentConfig[]; prompts?: Record<string, string> };
+  const parsed = JSON.parse(rawData) as {
+    defaultPersona?: string;
+    agents: AgentConfig[];
+    prompts?: Record<string, string>;
+  };
 
   loadedAgents = {};
   for (const agent of parsed.agents) {
     loadedAgents[agent.id] = agent;
   }
   loadedPrompts = parsed.prompts || {};
+  defaultPersonaId = parsed.defaultPersona || parsed.agents[0]?.id || null;
 }
 
 export function getAgentConfig(id: string): AgentConfig {
@@ -34,9 +40,14 @@ export function getAgentConfig(id: string): AgentConfig {
     loadRegistry();
   }
 
-  const config = loadedAgents![id];
+  let targetId = id;
+  if (targetId === 'default' && defaultPersonaId) {
+    targetId = defaultPersonaId;
+  }
+
+  const config = loadedAgents![targetId];
   if (!config) {
-    throw new Error(`Agent configuration for '${id}' not found in registry.`);
+    throw new Error(`Agent configuration for '${id}' (resolved to '${targetId}') not found in registry.`);
   }
   return config;
 }

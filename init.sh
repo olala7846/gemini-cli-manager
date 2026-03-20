@@ -14,7 +14,7 @@ fi
 if [ -d "$SDK_DIR" ]; then
   echo "Found SDK at $SDK_DIR"
   cd "$SDK_DIR"
-  npm install --ignore-scripts || echo "SDK npm install had issues, continuing..."
+  npm ci --ignore-scripts || echo "SDK npm ci had issues, continuing..."
   npm run build --if-present || echo "No build script found or build failed, continuing..."
   cd ../../../../
 else

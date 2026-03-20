@@ -1,4 +1,5 @@
 {
+  "defaultPersona": "coding-agent",
   "agents": [
     {
       "id": "coding-agent",
