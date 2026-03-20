@@ -4,6 +4,8 @@ import type { MessageMeta, OutboundMessage, InboundMessage } from '../../protoco
 import type { AgentConfig } from './registry.js';
 import type { GeminiCliSession } from '@google/gemini-cli-sdk';
 import { ReportStatusTool } from './statusTool.js';
+import type { SessionStore, MemStore } from '../persistence/interfaces.js';
+import { hydrateSessionHistory, extractSessionHistory } from './sdkWorkaround.js';
 
 type WorkerState = 'INITIALIZED' | 'RUNNING' | 'PAUSED' | 'STOPPED';
 type WorkerMode = 'interactive' | 'headless';
@@ -29,6 +31,8 @@ export class AgentWorker {
   private consecutiveInputNeeded = 0;
   private currentMeta: MessageMeta | null = null;
   private sessionId: string;
+  private sessionStore: SessionStore | undefined;
+  private memStore: MemStore | undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private publishOut(msg: any) {
@@ -46,22 +50,45 @@ export class AgentWorker {
     } as InboundMessage);
   }
 
-  constructor(config: AgentConfig, cwd: string, mode: WorkerMode = 'interactive', sessionId: string = 'default') {
+  constructor(
+    config: AgentConfig,
+    cwd: string,
+    mode: WorkerMode = 'interactive',
+    sessionId: string = 'default',
+    sessionStore?: SessionStore,
+    memStore?: MemStore
+  ) {
     this.config = config;
     this.cwd = cwd;
     this.mode = mode;
     this.sessionId = sessionId;
+    this.sessionStore = sessionStore;
+    this.memStore = memStore;
 
-    // We append a strict instruction to always use the tool
-    let augmentedPrompt = `${this.config.systemPrompt}\n\nCRITICAL SYSTEM INSTRUCTION: When you have finished your task, or if you are permanently blocked, you MUST call the \`report_status\` tool. Do not just print "blocked" or "completed" in text—you must invoke the tool with the appropriate state and reason.`;
+    const augmentedPromptFn = async () => {
+      let augmentedPrompt = `${this.config.systemPrompt}\n\nCRITICAL SYSTEM INSTRUCTION: When you have finished your task, or if you are permanently blocked, you MUST call the \`report_status\` tool. Do not just print "blocked" or "completed" in text—you must invoke the tool with the appropriate state and reason.`;
 
-    if (this.mode === 'headless') {
-      augmentedPrompt += `\n\n[CRITICAL INSTRUCTION] You are running in HEADLESS (YOLO) mode. There is no human available to provide input or clarification. You MUST use your best judgment to proceed, make reasonable assumptions when faced with ambiguity, and attempt to complete the main objective. Do NOT pause to ask for input.`;
-    }
+      if (this.mode === 'headless') {
+        augmentedPrompt += `\n\n[CRITICAL INSTRUCTION] You are running in HEADLESS (YOLO) mode. There is no human available to provide input or clarification. You MUST use your best judgment to proceed, make reasonable assumptions when faced with ambiguity, and attempt to complete the main objective. Do NOT pause to ask for input.`;
+      }
+
+      if (this.memStore) {
+        try {
+          const memory = await this.memStore.getMemory(this.config.id);
+          if (memory) {
+            augmentedPrompt += `\n\n[Long-Term Observations / Background]:\n${memory}`;
+          }
+        } catch (err) {
+          console.warn('Failed to load memory', err);
+        }
+      }
+
+      return augmentedPrompt;
+    };
 
     this.agent = new GeminiCliAgent({
       cwd: this.cwd,
-      instructions: augmentedPrompt,
+      instructions: augmentedPromptFn,
       ...(this.config.models?.primary ? { model: this.config.models.primary } : {}),
       ...(this.config.skills ? { skills: this.config.skills.map((s) => ({ type: 'dir' as const, path: s })) } : {}),
       tools: [ReportStatusTool]
@@ -71,6 +98,18 @@ export class AgentWorker {
   async start() {
     this.session = this.agent.session();
     await this.session.initialize();
+
+    if (this.sessionStore) {
+      try {
+        const history = await this.sessionStore.getHistory(this.sessionId);
+        if (history && history.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await hydrateSessionHistory(this.session, history as any, this.sessionId);
+        }
+      } catch (err) {
+        console.error('Failed to hydrate session history', err);
+      }
+    }
 
     // Listen to Pub/Sub events from the CLI
     subscribeInbound(async (msg) => {
@@ -211,6 +250,16 @@ export class AgentWorker {
       } else {
         this.state = 'STOPPED';
         this.publishOut({ type: 'error', content: 'Unknown error occurred' });
+      }
+    } finally {
+      if (this.sessionStore) {
+        const history = extractSessionHistory(this.session);
+        if (history.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await this.sessionStore.save(this.sessionId, history as any).catch((err) => {
+            console.error('Failed to save session history', err);
+          });
+        }
       }
     }
   }
